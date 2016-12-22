@@ -1,0 +1,90 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Net.Http;
+using Newtonsoft.Json;
+
+namespace AWkatanaClient
+{
+    class ClientProvider
+    {
+
+        string _hostUri;
+        public string AccessToken { get; private set; }
+
+        public ClientProvider(string hostUri)
+        {
+            _hostUri = hostUri;
+        }
+
+        public async Task<Dictionary<string, string>> GetTokenDictionary(string userName, string password, string clientId, string clientSecret)
+        {
+
+            HttpResponseMessage response;
+            var pairs = new List<KeyValuePair<string, string>>
+                {
+                 new KeyValuePair<string, string>( "client_id", clientId ),
+                 new KeyValuePair<string, string>( "client_secret", clientSecret ),
+
+                 new KeyValuePair<string, string>( "grant_type", "password" ),
+                 new KeyValuePair<string, string>( "username", userName ),
+                 new KeyValuePair<string, string> ( "password", password )
+                };
+            var content = new FormUrlEncodedContent(pairs);
+
+            using (var client = new HttpClient())
+            {
+                var tokenEndpoint = new Uri(new Uri(_hostUri), "Token");
+                response = await client.PostAsync(tokenEndpoint, content);
+            }
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception(string.Format("Error: {0}", responseContent));
+            }
+
+            return GetTokenDictionary(responseContent);
+        }
+
+        public async Task<Dictionary<string, string>> GetTokenDictionaryByRefreshToken(string refreshToken, string clientId, string clientSecret)
+        {
+            HttpResponseMessage response;
+            var pairs = new List<KeyValuePair<string, string>>
+                {
+                 new KeyValuePair<string, string>( "client_id", clientId ),
+                 new KeyValuePair<string, string>( "client_secret", clientSecret ),
+
+                 new KeyValuePair<string, string>( "grant_type", "refresh_token" ),
+                 new KeyValuePair<string, string>( "refresh_token", refreshToken )
+                };
+            var content = new FormUrlEncodedContent(pairs);
+
+            using (var client = new HttpClient())
+            {
+                var tokenEndpoint = new Uri(new Uri(_hostUri), "Token");
+                response = await client.PostAsync(tokenEndpoint, content);
+            }
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception(string.Format("Error: {0}", responseContent));
+            }
+
+            return GetTokenDictionary(responseContent);
+        }
+
+        private Dictionary<string, string> GetTokenDictionary(string responseContent)
+        {
+            Dictionary<string, string> tokenDictionary = JsonConvert.DeserializeObject<Dictionary<string, string>>(responseContent);
+            return tokenDictionary;
+        }
+
+
+
+
+    }
+}
